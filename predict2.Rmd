@@ -1,0 +1,69 @@
+Predictive Modeling using Weight Lifting Exercise Dataset
+========================================================
+
+```{r}
+dat1<-read.csv("pml-training.csv")
+
+## Preserving flag for potential outliers
+dat1$flag<-ifelse(dat1$kurtosis_roll_belt !="",1,0)
+## Deleting variables with mostly missing values  
+dat1<-dat1[,sapply(dat1, function(x) sum(x=="" | is.na(x)==1))/nrow(dat1)<0.8]
+
+library(caret)
+library(ggplot2)
+## 70% to training set, 30% to testing
+inTrain<-createDataPartition(y=dat1$classe, p=0.7,list=F)
+train<-dat1[inTrain,]
+test<-dat1[-inTrain,]
+
+## Filtering variables based on ANOVA F-value 
+Fval<-function(n){
+  a<-lm(train[,n]~train$classe )
+  x<-unlist(summary.aov(a)[[1]]["F value"])[1]
+  names(x)<-names(dat1)[n]
+  return(x)
+}
+Fval_var<-NA*numeric(60)
+for (i in 7:59) Fval_var[i]<-Fval(i)
+```
+
+```{r fig.width=6.93, fig.height=5.23}
+par(mfrow=c(1,1))
+hist(Fval_var,breaks=c(0,30,50,70,100,150,200,300,400,500,800))
+```
+
+```{r}
+## Heatmap of correlation of variables where Fval>70
+value<-1-abs(cor(train[,!is.na(Fval_var) & Fval_var>70 ]))
+rownames(value)<-paste("F=",signif(Fval_var[!is.na(Fval_var) & Fval_var>70],2), names(train)[!is.na(Fval_var) & Fval_var>70])
+colnames(value)<-names(train)[!is.na(Fval_var) & Fval_var>70]
+```
+```{r fig.width=7.22, fig.height=5.23}
+heatmap(value,col = heat.colors(20),scale=c("none"))
+```
+
+```{r}
+## Predicting variables names to be used below
+retain_var2=names(train)[!is.na(Fval_var) & Fval_var>70]
+
+## Keeping only classe variable and predictive variables in the datasets
+train<-train[,c(retain_var2,"classe")]
+test<-test[,c(retain_var2,"classe")]
+```
+
+```{r}
+## Random Forest building prediction
+modFit<-train(classe~.,method="rf",data=train,prox=T)
+```
+
+```{r}
+modFit$finalModel
+```
+
+```{r}
+## Tabulation of prediction for the (30%) testing set
+table(test$classe,predict(modFit,newdata=test))
+(accuracy<-100*sum(test$classe==predict(modFit,newdata=test))/length(test$classe))
+(errorrate<-100-accuracy)
+modFit$finalModel
+```
