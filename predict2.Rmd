@@ -2,7 +2,7 @@ Predictive Modeling using Weight Lifting Exercise Dataset
 ========================================================
 
 ```{r}
-dat1<-read.csv("pml-training.csv")
+dat1<-read.csv("C:/Users/Vlad/Documents/Coursera/Predictive/pml-training.csv")
 
 ## Preserving flag for potential outliers
 dat1$flag<-ifelse(dat1$kurtosis_roll_belt !="",1,0)
@@ -62,8 +62,10 @@ modFit$finalModel
 
 ```{r}
 ## Tabulation of prediction for the (30%) testing set
+## out of sample accuracy and error rate
 table(test$classe,predict(modFit,newdata=test))
 (accuracy<-100*sum(test$classe==predict(modFit,newdata=test))/length(test$classe))
 (errorrate<-100-accuracy)
-modFit$finalModel
+## Importance of variables
+varImp(modFit)
 ```
